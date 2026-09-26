@@ -22,11 +22,10 @@ st.write("Interactive electronics toolkit for ECE students.")
 # SIDEBAR NAVIGATION
 # ============================================================
 
-st.sidebar.title("🧭 Navigation")
-
 section = st.sidebar.selectbox(
     "Choose a section",
     [
+        "🏠 Smart Lab Home",
         "🔌 Circuit Calculators",
         "📡 ECE Calculators",
         "📚 Learn ECE",
@@ -34,11 +33,52 @@ section = st.sidebar.selectbox(
     ]
 )
 
+if section == "🏠 Smart Lab Home":
+
+    st.header("⚡ Welcome to ECE Smart Lab")
+
+    st.write(
+        "An interactive electronics toolkit for ECE students "
+        "to calculate, learn, and explore engineering concepts."
+    )
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("🔌 Circuit Calculators")
+        st.write("Solve common electrical and circuit calculations.")
+        st.info("Ohm's Law • LED Resistor • Resistance • Power • Voltage Divider")
+
+    with col2:
+        st.subheader("📡 ECE Calculators")
+        st.write("Explore useful electronics and communication formulas.")
+        st.info("Wavelength • dB • RC Time Constant • Resonance")
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+        st.subheader("📚 Learn ECE")
+        st.write("Review important concepts across major ECE subjects.")
+        st.info("Basic Electronics • Analog • Digital • Communication • EM")
+
+    with col4:
+        st.subheader("🤖 ECE AI Assistant")
+        st.write("Ask your local AI assistant ECE-related questions.")
+        st.info("Powered by local Ollama AI")
+
+    st.divider()
+
+    st.success("🚀 Select a section from the sidebar to get started.")
+
 # ============================================================
 # CIRCUIT CALCULATORS
 # ============================================================
 
-if section == "🔌 Circuit Calculators":
+elif section == "🔌 Circuit Calculators":
+
+
 
     st.header("🔌 Circuit Calculators")
 
