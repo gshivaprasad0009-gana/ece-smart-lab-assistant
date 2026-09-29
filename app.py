@@ -1,742 +1,1220 @@
 import streamlit as st
+
 import math
+
 import requests
+
+from hindsight_client import Hindsight
+
+
+
+HINDSIGHT_URL = "http://localhost:8888"
+HINDSIGHT_BANK = "ece-smart-lab"
+
+
+def _run_hindsight_in_thread(operation, *args, **kwargs):
+    """Run Hindsight sync calls in a worker thread to avoid Streamlit loop conflicts."""
+    import concurrent.futures
+
+    def _worker():
+        client = Hindsight(HINDSIGHT_URL)
+        try:
+            return operation(client, *args, **kwargs)
+        finally:
+            client.close()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(_worker).result(timeout=120)
+
+
+def _hindsight_recall(query):
+    return _run_hindsight_in_thread(
+        lambda client, bank_id, q: client.recall(
+            bank_id=bank_id, query=q, max_tokens=1500
+        ),
+        HINDSIGHT_BANK,
+        query,
+    )
+
+
+def _hindsight_retain(content):
+    return _run_hindsight_in_thread(
+        lambda client, bank_id, text: client.retain(
+            bank_id=bank_id, content=text
+        ),
+        HINDSIGHT_BANK,
+        content,
+    )
+
 # ============================================================
+
 # PAGE CONFIGURATION
+
 # ============================================================
+
+
 
 st.set_page_config(
+
     page_title="ECE Smart Lab Assistant",
+
     page_icon="⚡",
-    layout="wide"
+
+    layout="wide",
+
 )
 
+
+
 # ============================================================
+
 # HEADER
+
 # ============================================================
+
+
 
 st.title("⚡ ECE Smart Lab Assistant")
+
 st.write("Interactive electronics toolkit for ECE students.")
 
-# ============================================================
-# SIDEBAR NAVIGATION
+
+
 # ============================================================
 
+# SIDEBAR NAVIGATION
+
+# ============================================================
+
+
+
 section = st.sidebar.selectbox(
+
     "Choose a section",
+
     [
+
         "🏠 Smart Lab Home",
+
         "🔌 Circuit Calculators",
+
         "📡 ECE Calculators",
+
         "📚 Learn ECE",
-        "🤖 ECE AI Assistant"
-    ]
+
+        "🤖 ECE AI Assistant",
+
+    ],
+
 )
+
+
+
+# ============================================================
+
+# SMART LAB HOME
+
+# ============================================================
+
+
 
 if section == "🏠 Smart Lab Home":
 
     st.header("⚡ Welcome to ECE Smart Lab")
 
+
+
     st.write(
+
         "An interactive electronics toolkit for ECE students "
+
         "to calculate, learn, and explore engineering concepts."
+
     )
+
+
 
     st.divider()
 
+
+
     col1, col2 = st.columns(2)
 
+
+
     with col1:
+
         st.subheader("🔌 Circuit Calculators")
+
         st.write("Solve common electrical and circuit calculations.")
-        st.info("Ohm's Law • LED Resistor • Resistance • Power • Voltage Divider")
+
+        st.info(
+
+            "Ohm's Law • LED Resistor • Resistance • Power • Voltage Divider"
+
+        )
+
+
 
     with col2:
+
         st.subheader("📡 ECE Calculators")
+
         st.write("Explore useful electronics and communication formulas.")
+
         st.info("Wavelength • dB • RC Time Constant • Resonance")
+
+
 
     col3, col4 = st.columns(2)
 
+
+
     with col3:
+
         st.subheader("📚 Learn ECE")
+
         st.write("Review important concepts across major ECE subjects.")
+
         st.info("Basic Electronics • Analog • Digital • Communication • EM")
 
+
+
     with col4:
+
         st.subheader("🤖 ECE AI Assistant")
+
         st.write("Ask your local AI assistant ECE-related questions.")
+
         st.info("Powered by local Ollama AI")
+
+
+
+    st.divider()
+
+    st.subheader("🚀 Quick Start")
+
+
+
+    quick_col1, quick_col2, quick_col3 = st.columns(3)
+
+
+
+    with quick_col1:
+
+        st.info(
+
+            "🔌 **Calculate**\n\n"
+
+            "Use circuit and ECE calculators for quick engineering calculations."
+
+        )
+
+
+
+    with quick_col2:
+
+        st.info(
+
+            "📚 **Learn**\n\n"
+
+            "Explore important ECE topics and build your fundamentals."
+
+        )
+
+
+
+    with quick_col3:
+
+        st.info(
+
+            "🤖 **Ask AI**\n\n"
+
+            "Ask the local ECE AI Assistant for simple explanations and examples."
+
+        )
+
+
 
     st.divider()
 
     st.success("🚀 Select a section from the sidebar to get started.")
 
+
+
 # ============================================================
+
 # CIRCUIT CALCULATORS
+
 # ============================================================
+
+
 
 elif section == "🔌 Circuit Calculators":
 
-
-
     st.header("🔌 Circuit Calculators")
 
+
+
     calculator = st.selectbox(
+
         "Select calculator",
+
         [
+
             "Ohm's Law",
+
             "LED Resistor",
+
             "Series Resistance",
+
             "Parallel Resistance",
+
             "Power Calculator",
-            "Voltage Divider"
-        ]
+
+            "Voltage Divider",
+
+        ],
+
     )
 
+
+
     # --------------------------------------------------------
+
     # OHM'S LAW
+
     # --------------------------------------------------------
+
+
 
     if calculator == "Ohm's Law":
 
         st.subheader("⚡ Ohm's Law Calculator")
 
+
+
         col1, col2 = st.columns(2)
 
+
+
         with col1:
+
             voltage = st.number_input(
+
                 "Voltage (V)",
+
                 min_value=0.0,
-                value=12.0
+
+                value=12.0,
+
+                key="ohm_voltage",
+
             )
 
+
+
         with col2:
+
             resistance = st.number_input(
+
                 "Resistance (Ω)",
+
                 min_value=0.01,
-                value=100.0
+
+                value=100.0,
+
+                key="ohm_resistance",
+
             )
+
+
 
         if st.button("Calculate Current", key="ohm"):
 
             current = voltage / resistance
 
-            st.success(
-                f"Current = {current:.4f} A"
-            )
+            st.success(f"Current = {current:.4f} A")
 
-            st.info(
-                f"Formula: I = V / R = {voltage} / {resistance}"
-            )
+            st.info(f"Formula: I = V / R = {voltage} / {resistance}")
+
+
 
     # --------------------------------------------------------
+
     # LED RESISTOR
+
     # --------------------------------------------------------
+
+
 
     elif calculator == "LED Resistor":
 
         st.subheader("💡 LED Resistor Calculator")
 
+
+
         col1, col2, col3 = st.columns(3)
 
+
+
         with col1:
+
             supply_voltage = st.number_input(
+
                 "Supply Voltage (V)",
+
                 min_value=0.0,
-                value=5.0
+
+                value=5.0,
+
+                key="led_supply",
+
             )
+
+
 
         with col2:
+
             led_voltage = st.number_input(
+
                 "LED Forward Voltage (V)",
+
                 min_value=0.0,
-                value=2.0
+
+                value=2.0,
+
+                key="led_voltage",
+
             )
 
+
+
         with col3:
+
             led_current = st.number_input(
+
                 "LED Current (mA)",
+
                 min_value=0.1,
-                value=20.0
+
+                value=20.0,
+
+                key="led_current",
+
             )
+
+
 
         if st.button("Calculate Resistor", key="led"):
 
             if supply_voltage <= led_voltage:
 
                 st.error(
+
                     "Supply voltage must be greater than LED forward voltage."
+
                 )
 
             else:
 
                 current_a = led_current / 1000
 
-                resistor = (
-                    supply_voltage - led_voltage
-                ) / current_a
+                resistor = (supply_voltage - led_voltage) / current_a
 
-                st.success(
-                    f"Required Resistor = {resistor:.1f} Ω"
-                )
+                st.success(f"Required Resistor = {resistor:.1f} Ω")
 
-                st.info(
-                    "Formula: R = (Vs - Vf) / I"
-                )
+                st.info("Formula: R = (Vs - Vf) / I")
+
+
 
     # --------------------------------------------------------
+
     # SERIES RESISTANCE
+
     # --------------------------------------------------------
+
+
 
     elif calculator == "Series Resistance":
 
         st.subheader("🔗 Series Resistance Calculator")
 
+
+
         count = st.number_input(
+
             "Number of resistors",
+
             min_value=2,
+
             max_value=10,
+
             value=2,
-            step=1
+
+            step=1,
+
+            key="series_count",
+
         )
 
+
+
         resistors = []
+
+
 
         for i in range(int(count)):
 
             value = st.number_input(
+
                 f"R{i + 1} (Ω)",
+
                 min_value=0.0,
+
                 value=100.0,
-                key=f"series_{i}"
+
+                key=f"series_{i}",
+
             )
 
             resistors.append(value)
 
-        if st.button("Calculate Series Resistance"):
+
+
+        if st.button("Calculate Series Resistance", key="series_button"):
 
             total = sum(resistors)
 
-            st.success(
-                f"Total Resistance = {total:.2f} Ω"
-            )
+            st.success(f"Total Resistance = {total:.2f} Ω")
 
-            st.info(
-                "Formula: Rtotal = R1 + R2 + R3 + ..."
-            )
+            st.info("Formula: Rtotal = R1 + R2 + R3 + ...")
+
+
 
     # --------------------------------------------------------
+
     # PARALLEL RESISTANCE
+
     # --------------------------------------------------------
+
+
 
     elif calculator == "Parallel Resistance":
 
         st.subheader("🔗 Parallel Resistance Calculator")
 
+
+
         count = st.number_input(
+
             "Number of resistors",
+
             min_value=2,
+
             max_value=10,
+
             value=2,
-            step=1
+
+            step=1,
+
+            key="parallel_count",
+
         )
 
+
+
         resistors = []
+
+
 
         for i in range(int(count)):
 
             value = st.number_input(
+
                 f"R{i + 1} (Ω)",
+
                 min_value=0.01,
+
                 value=100.0,
-                key=f"parallel_{i}"
+
+                key=f"parallel_{i}",
+
             )
 
             resistors.append(value)
 
-        if st.button("Calculate Parallel Resistance"):
 
-            inverse_total = sum(
-                1 / r for r in resistors
-            )
+
+        if st.button("Calculate Parallel Resistance", key="parallel_button"):
+
+            inverse_total = sum(1 / r for r in resistors)
 
             total = 1 / inverse_total
 
-            st.success(
-                f"Total Resistance = {total:.2f} Ω"
-            )
+            st.success(f"Total Resistance = {total:.2f} Ω")
 
-            st.info(
-                "Formula: 1/Rtotal = 1/R1 + 1/R2 + ..."
-            )
+            st.info("Formula: 1/Rtotal = 1/R1 + 1/R2 + ...")
+
+
 
     # --------------------------------------------------------
+
     # POWER CALCULATOR
+
     # --------------------------------------------------------
+
+
 
     elif calculator == "Power Calculator":
 
         st.subheader("⚡ Electrical Power Calculator")
 
+
+
         method = st.selectbox(
+
             "Choose calculation",
+
             [
+
                 "Voltage × Current",
+
                 "Current² × Resistance",
-                "Voltage² ÷ Resistance"
-            ]
+
+                "Voltage² ÷ Resistance",
+
+            ],
+
         )
+
+
 
         if method == "Voltage × Current":
 
             voltage = st.number_input(
+
                 "Voltage (V)",
+
                 min_value=0.0,
-                value=12.0
+
+                value=12.0,
+
+                key="power_voltage_1",
+
             )
 
+
+
             current = st.number_input(
+
                 "Current (A)",
+
                 min_value=0.0,
-                value=1.0
+
+                value=1.0,
+
+                key="power_current_1",
+
             )
+
+
 
             if st.button("Calculate Power", key="power1"):
 
                 power = voltage * current
 
-                st.success(
-                    f"Power = {power:.2f} W"
-                )
+                st.success(f"Power = {power:.2f} W")
+
+                st.info("Formula: P = V × I")
+
+
 
         elif method == "Current² × Resistance":
 
             current = st.number_input(
+
                 "Current (A)",
+
                 min_value=0.0,
-                value=1.0
+
+                value=1.0,
+
+                key="power_current_2",
+
             )
 
+
+
             resistance = st.number_input(
+
                 "Resistance (Ω)",
-                min_value=0.0,
-                value=10.0
+
+                min_value=0.01,
+
+                value=10.0,
+
+                key="power_resistance_2",
+
             )
+
+
 
             if st.button("Calculate Power", key="power2"):
 
-                power = current ** 2 * resistance
+                power = current**2 * resistance
 
-                st.success(
-                    f"Power = {power:.2f} W"
-                )
+                st.success(f"Power = {power:.2f} W")
+
+                st.info("Formula: P = I²R")
+
+
 
         else:
 
             voltage = st.number_input(
+
                 "Voltage (V)",
+
                 min_value=0.0,
-                value=12.0
+
+                value=12.0,
+
+                key="power_voltage_3",
+
             )
 
+
+
             resistance = st.number_input(
+
                 "Resistance (Ω)",
+
                 min_value=0.01,
-                value=100.0
+
+                value=100.0,
+
+                key="power_resistance_3",
+
             )
+
+
 
             if st.button("Calculate Power", key="power3"):
 
-                power = voltage ** 2 / resistance
+                power = voltage**2 / resistance
 
-                st.success(
-                    f"Power = {power:.2f} W"
-                )
+                st.success(f"Power = {power:.2f} W")
+
+                st.info("Formula: P = V² / R")
+
+
 
     # --------------------------------------------------------
+
     # VOLTAGE DIVIDER
+
     # --------------------------------------------------------
+
+
 
     elif calculator == "Voltage Divider":
 
         st.subheader("🔋 Voltage Divider Calculator")
 
+
+
         col1, col2, col3 = st.columns(3)
+
+
 
         with col1:
 
             vin = st.number_input(
+
                 "Input Voltage (V)",
+
                 min_value=0.0,
-                value=12.0
+
+                value=12.0,
+
+                key="divider_vin",
+
             )
+
+
 
         with col2:
 
             r1 = st.number_input(
+
                 "R1 (Ω)",
+
                 min_value=0.01,
-                value=1000.0
+
+                value=1000.0,
+
+                key="divider_r1",
+
             )
+
+
 
         with col3:
 
             r2 = st.number_input(
+
                 "R2 (Ω)",
+
                 min_value=0.01,
-                value=1000.0
+
+                value=1000.0,
+
+                key="divider_r2",
+
             )
 
-        if st.button("Calculate Output Voltage"):
+
+
+        if st.button("Calculate Output Voltage", key="divider"):
 
             vout = vin * r2 / (r1 + r2)
 
-            st.success(
-                f"Output Voltage = {vout:.3f} V"
-            )
+            st.success(f"Output Voltage = {vout:.4f} V")
 
-            st.info(
-                "Formula: Vout = Vin × R2 / (R1 + R2)"
-            )
+            st.info("Formula: Vout = Vin × R2 / (R1 + R2)")
+
 
 
 # ============================================================
+
 # ECE CALCULATORS
+
 # ============================================================
+
+
 
 elif section == "📡 ECE Calculators":
 
     st.header("📡 ECE Calculators")
 
+
+
     calculator = st.selectbox(
-        "Select calculator",
+
+        "Select ECE calculator",
+
         [
-            "Frequency / Wavelength",
-            "dB Calculator",
+
+            "Wavelength",
+
+            "Decibel Gain",
+
             "RC Time Constant",
-            "Resonant Frequency"
-        ]
+
+            "Resonant Frequency",
+
+        ],
+
     )
 
+
+
     # --------------------------------------------------------
-    # FREQUENCY / WAVELENGTH
+
+    # WAVELENGTH
+
     # --------------------------------------------------------
 
-    if calculator == "Frequency / Wavelength":
 
-        st.subheader("📡 Frequency ↔ Wavelength")
 
-        mode = st.radio(
-            "Choose calculation",
-            [
-                "Frequency → Wavelength",
-                "Wavelength → Frequency"
-            ]
+    if calculator == "Wavelength":
+
+        st.subheader("📡 Wavelength Calculator")
+
+
+
+        frequency = st.number_input(
+
+            "Frequency (Hz)",
+
+            min_value=0.000001,
+
+            value=1_000_000.0,
+
+            format="%.6f",
+
         )
 
-        if mode == "Frequency → Wavelength":
 
-            frequency = st.number_input(
-                "Frequency (Hz)",
+
+        if st.button("Calculate Wavelength", key="wavelength"):
+
+            speed_of_light = 299_792_458
+
+            wavelength = speed_of_light / frequency
+
+            st.success(f"Wavelength = {wavelength:.6f} m")
+
+            st.info("Formula: λ = c / f")
+
+
+
+    # --------------------------------------------------------
+
+    # DECIBEL
+
+    # --------------------------------------------------------
+
+
+
+    elif calculator == "Decibel Gain":
+
+        st.subheader("📶 Decibel Gain Calculator")
+
+
+
+        mode = st.selectbox(
+
+            "Choose calculation",
+
+            ["Power Gain", "Voltage Gain"],
+
+        )
+
+
+
+        if mode == "Power Gain":
+
+            pout = st.number_input(
+
+                "Output Power",
+
                 min_value=0.000001,
-                value=1e9,
-                format="%.6g"
+
+                value=10.0,
+
+                key="db_pout",
+
             )
 
-            if st.button("Calculate Wavelength"):
+            pin = st.number_input(
 
-                wavelength = 3e8 / frequency
+                "Input Power",
 
-                st.success(
-                    f"Wavelength = {wavelength:.6f} m"
-                )
+                min_value=0.000001,
+
+                value=1.0,
+
+                key="db_pin",
+
+            )
+
+
+
+            if st.button("Calculate dB", key="db_power"):
+
+                db = 10 * math.log10(pout / pin)
+
+                st.success(f"Gain = {db:.2f} dB")
+
+                st.info("Formula: G(dB) = 10 log10(Pout / Pin)")
+
+
 
         else:
 
-            wavelength = st.number_input(
-                "Wavelength (m)",
+            vout = st.number_input(
+
+                "Output Voltage",
+
                 min_value=0.000001,
-                value=0.3
+
+                value=10.0,
+
+                key="db_vout",
+
             )
 
-            if st.button("Calculate Frequency"):
+            vin = st.number_input(
 
-                frequency = 3e8 / wavelength
+                "Input Voltage",
 
-                st.success(
-                    f"Frequency = {frequency:.3e} Hz"
-                )
+                min_value=0.000001,
 
-        st.info(
-            "Formula: c = fλ, where c ≈ 3 × 10⁸ m/s"
-        )
+                value=1.0,
 
-    # --------------------------------------------------------
-    # DECIBEL
-    # --------------------------------------------------------
+                key="db_vin",
 
-    elif calculator == "dB Calculator":
+            )
 
-        st.subheader("📊 Decibel Calculator")
 
-        mode = st.selectbox(
-            "Choose calculation",
-            [
-                "Power Ratio → dB",
-                "Voltage Ratio → dB"
-            ]
-        )
 
-        ratio = st.number_input(
-            "Ratio",
-            min_value=0.000001,
-            value=10.0
-        )
+            if st.button("Calculate dB", key="db_voltage"):
 
-        if st.button("Calculate dB"):
+                db = 20 * math.log10(vout / vin)
 
-            if mode == "Power Ratio → dB":
+                st.success(f"Gain = {db:.2f} dB")
 
-                db = 10 * math.log10(ratio)
+                st.info("Formula: G(dB) = 20 log10(Vout / Vin)")
 
-                st.success(
-                    f"Gain/Loss = {db:.3f} dB"
-                )
 
-                st.info(
-                    "Formula: dB = 10 log₁₀(P₂/P₁)"
-                )
-
-            else:
-
-                db = 20 * math.log10(ratio)
-
-                st.success(
-                    f"Gain/Loss = {db:.3f} dB"
-                )
-
-                st.info(
-                    "Formula: dB = 20 log₁₀(V₂/V₁)"
-                )
 
     # --------------------------------------------------------
+
     # RC TIME CONSTANT
+
     # --------------------------------------------------------
+
+
 
     elif calculator == "RC Time Constant":
 
-        st.subheader("⏱️ RC Time Constant")
+        st.subheader("⏱️ RC Time Constant Calculator")
+
+
 
         resistance = st.number_input(
+
             "Resistance (Ω)",
-            min_value=0.0,
-            value=1000.0
+
+            min_value=0.01,
+
+            value=1000.0,
+
+            key="rc_r",
+
         )
+
+
 
         capacitance = st.number_input(
+
             "Capacitance (F)",
-            min_value=0.000001,
+
+            min_value=0.000000001,
+
             value=0.000001,
-            format="%.8g"
+
+            format="%.9f",
+
+            key="rc_c",
+
         )
 
-        if st.button("Calculate Time Constant"):
+
+
+        if st.button("Calculate Time Constant", key="rc"):
 
             tau = resistance * capacitance
 
-            st.success(
-                f"Time Constant τ = {tau:.6f} seconds"
-            )
+            st.success(f"Time Constant τ = {tau:.6f} s")
 
-            st.info(
-                "Formula: τ = RC"
-            )
+            st.info("Formula: τ = R × C")
+
+
 
     # --------------------------------------------------------
-    # RESONANT FREQUENCY
+
+    # RESONANCE
+
     # --------------------------------------------------------
+
+
 
     elif calculator == "Resonant Frequency":
 
-        st.subheader("📻 LC Resonant Frequency")
+        st.subheader("📻 Resonant Frequency Calculator")
+
+
 
         inductance = st.number_input(
+
             "Inductance (H)",
+
             min_value=0.000001,
+
             value=0.001,
-            format="%.8g"
+
+            format="%.6f",
+
+            key="res_l",
+
         )
+
+
 
         capacitance = st.number_input(
+
             "Capacitance (F)",
-            min_value=0.000000000001,
+
+            min_value=0.000000001,
+
             value=0.000001,
-            format="%.8g"
+
+            format="%.9f",
+
+            key="res_c",
+
         )
 
-        if st.button("Calculate Resonant Frequency"):
 
-            frequency = (
-                1 /
-                (
-                    2 *
-                    math.pi *
-                    math.sqrt(
-                        inductance * capacitance
-                    )
-                )
-            )
 
-            st.success(
-                f"Resonant Frequency = {frequency:.3f} Hz"
-            )
+        if st.button("Calculate Resonant Frequency", key="resonance"):
 
-            st.info(
-                "Formula: fr = 1 / (2π√LC)"
-            )
+            frequency = 1 / (2 * math.pi * math.sqrt(inductance * capacitance))
+
+            st.success(f"Resonant Frequency = {frequency:.2f} Hz")
+
+            st.info("Formula: f₀ = 1 / (2π√(LC))")
+
 
 
 # ============================================================
+
 # LEARN ECE
+
 # ============================================================
+
+
 
 elif section == "📚 Learn ECE":
 
     st.header("📚 Learn ECE")
 
-    subject = st.selectbox(
-        "Choose a subject",
+
+
+    topic = st.selectbox(
+
+        "Choose a topic",
+
         [
+
             "Basic Electronics",
-            "Analog Circuits",
+
+            "Analog Electronics",
+
             "Digital Electronics",
-            "Communication",
-            "Electromagnetics"
-        ]
+
+            "Communication Systems",
+
+            "Electromagnetic Waves",
+
+        ],
+
     )
 
-    # --------------------------------------------------------
-    # BASIC ELECTRONICS
-    # --------------------------------------------------------
 
-    if subject == "Basic Electronics":
 
-        st.subheader("🔌 Basic Electronics")
+    topics = {
 
-        st.markdown("""
-### Important Topics
+        "Basic Electronics": {
 
-- Voltage
-- Current
-- Resistance
-- Ohm's Law
-- Kirchhoff's Laws
-- Power
-- Capacitors
-- Inductors
-- Diodes
-- Transistors
-- LED
-- Rectifiers
-        """)
+            "definition": "Basic electronics covers voltage, current, resistance, power, components, and simple circuits.",
 
-    # --------------------------------------------------------
-    # ANALOG CIRCUITS
-    # --------------------------------------------------------
+            "points": [
 
-    elif subject == "Analog Circuits":
+                "Voltage is electrical potential difference.",
 
-        st.subheader("🔊 Analog Circuits")
+                "Current is the flow of electric charge.",
 
-        st.markdown("""
-### Important Topics
+                "Resistance opposes current flow.",
 
-- Diode Circuits
-- BJT
-- FET
-- MOSFET
-- CE Amplifier
-- CB Amplifier
-- CC Amplifier
-- Small Signal Analysis
-- Feedback Amplifiers
-- Oscillators
-- Operational Amplifiers
-- Filters
-        """)
+                "Ohm's Law: V = IR.",
 
-    # --------------------------------------------------------
-    # DIGITAL ELECTRONICS
-    # --------------------------------------------------------
+            ],
 
-    elif subject == "Digital Electronics":
+        },
 
-        st.subheader("💻 Digital Electronics")
+        "Analog Electronics": {
 
-        st.markdown("""
-### Important Topics
+            "definition": "Analog electronics deals with continuously varying signals and circuits such as amplifiers and filters.",
 
-- Number Systems
-- Boolean Algebra
-- Logic Gates
-- Karnaugh Maps
-- Combinational Circuits
-- Multiplexers
-- Demultiplexers
-- Encoders
-- Decoders
-- Flip-Flops
-- Counters
-- Registers
-        """)
+            "points": [
 
-    # --------------------------------------------------------
-    # COMMUNICATION
-    # --------------------------------------------------------
+                "BJT and MOSFET are common semiconductor devices.",
 
-    elif subject == "Communication":
+                "Amplifiers increase signal amplitude.",
 
-        st.subheader("📡 Communication Systems")
+                "Filters select or reject frequency ranges.",
 
-        st.markdown("""
-### Important Topics
+            ],
 
-- Analog Communication
-- AM
-- FM
-- PM
-- Modulation
-- Demodulation
-- Noise
-- Sampling
-- Pulse Modulation
-- Digital Communication
-- Antennas
-        """)
+        },
 
-    # --------------------------------------------------------
-    # ELECTROMAGNETICS
-    # --------------------------------------------------------
+        "Digital Electronics": {
 
-    elif subject == "Electromagnetics":
+            "definition": "Digital electronics represents information using discrete logic levels, commonly 0 and 1.",
 
-        st.subheader("🧲 Electromagnetics")
+            "points": [
 
-        st.markdown("""
-### Important Topics
+                "Basic gates include AND, OR, and NOT.",
 
-- Electric Fields
-- Magnetic Fields
-- Maxwell's Equations
-- Wave Propagation
-- Transmission Lines
-- Polarization
-- Antennas
-- Radiation
-- Electromagnetic Waves
-        """)
+                "Combinational circuits depend on present inputs.",
 
+                "Sequential circuits also depend on previous states.",
+
+            ],
+
+        },
+
+        "Communication Systems": {
+
+            "definition": "Communication systems transfer information from a source to a destination through a transmission medium.",
+
+            "points": [
+
+                "A transmitter prepares a signal for transmission.",
+
+                "A channel carries the signal.",
+
+                "A receiver recovers the information.",
+
+                "Common modulation types include AM, FM, and PM.",
+
+            ],
+
+        },
+
+        "Electromagnetic Waves": {
+
+            "definition": "Electromagnetic waves consist of time-varying electric and magnetic fields that propagate through space.",
+
+            "points": [
+
+                "Electric and magnetic fields are mutually perpendicular.",
+
+                "The wavelength-frequency relationship is c = fλ in free space.",
+
+                "Antennas can transmit and receive electromagnetic energy.",
+
+            ],
+
+        },
+
+    }
+
+
+
+    selected = topics[topic]
+
+
+
+    st.subheader(topic)
+
+    st.write(selected["definition"])
+
+
+
+    st.markdown("### Key Points")
+
+    for point in selected["points"]:
+
+        st.write(f"• {point}")
+
+
+
+# ============================================================
 
 # ============================================================
 # ECE AI ASSISTANT
@@ -744,69 +1222,99 @@ elif section == "📚 Learn ECE":
 
 elif section == "🤖 ECE AI Assistant":
     st.header("🤖 ECE AI Assistant")
-    st.write("Ask any ECE question and get an explanation from local AI.")
 
-    question = st.text_area(
-        "Ask an ECE question",
-        placeholder="Example: Explain a half-wave dipole antenna in simple words.",
-        height=150
+    st.write(
+        "Ask an ECE-related question. This assistant uses local Ollama AI and Hindsight memory."
     )
 
-    if st.button("🚀 Ask ECE Assistant"):
-        if question.strip():
+    prompt = st.text_area(
+        "Your question",
+        height=120,
+        placeholder="Example: Explain Kirchhoff's Voltage Law",
+    )
 
-            with st.spinner("🤖 Thinking..."):
+    if st.button("Ask ECE AI", key="ai"):
+        if not prompt.strip():
+            st.warning("Please enter a question first.")
+        else:
+            memory_text = ""
+
+            try:
+                memories = _hindsight_recall(prompt)
+                memory_text = "\n".join(
+                    item.text for item in memories.results
+                    if getattr(item, "text", "").strip()
+                )
+            except Exception as e:
+                st.warning(f"Hindsight recall unavailable: {e}")
+
+            with st.spinner("Thinking..."):
                 try:
                     response = requests.post(
                         "http://localhost:11434/api/generate",
                         json={
                             "model": "llama3.2:3b",
-                            "prompt": f"""
-You are an ECE AI Assistant.
-
-Explain the following ECE question in simple,
-student-friendly language.
-
-Question:
-{question}
-
-Give:
-1. Simple explanation
-2. Important formula if applicable
-3. Small example if applicable
-""",
-                            "stream": False
+                            "prompt": (
+                                "You are the ECE Smart Lab Assistant. "
+                                "Answer ECE study questions clearly and simply. "
+                                "Use formulas and examples when useful. "
+                                "This project is a Streamlit-based ECE toolkit using local Ollama and Hindsight memory. "
+                                "Use recalled memory only when it is relevant to this ECE Smart Lab project or the current student question. "
+                                "Ignore unrelated or conflicting memories.\n\n"
+                                f"Relevant Hindsight memory:\n{memory_text}\n\n"
+                                f"Student question: {prompt}"
+                            ),
+                            "stream": False,
                         },
-                        timeout=120
+                        timeout=120,
                     )
 
                     if response.status_code == 200:
-                        answer = response.json()["response"]
-                        st.success("✅ Answer")
-                        st.markdown(answer)
+                        data = response.json()
+                        answer = data.get("response", "").strip()
+
+                        if answer:
+                            st.success("AI Response")
+                            st.write(answer)
+
+                            # Save the new interaction to Hindsight without
+                            # interfering with the answer-generation request.
+                            try:
+                                _hindsight_retain(
+                                    f"Student asked: {prompt}\nAssistant answered: {answer}"
+                                )
+                            except Exception as e:
+                                st.info(f"Answer completed; memory save unavailable: {e}")
+                        else:
+                            st.warning("The AI returned an empty response.")
                     else:
                         st.error(
-                            f"Ollama returned an error: {response.status_code}"
+                            f"Ollama returned HTTP status {response.status_code}."
                         )
 
                 except requests.exceptions.ConnectionError:
                     st.error(
-                        "❌ Cannot connect to Ollama. "
-                        "Make sure Ollama is running."
+                        "Could not connect to Ollama. "
+                        "Make sure Ollama is running on your computer."
                     )
+                except requests.exceptions.Timeout:
+                    st.error(
+                        "The AI request timed out. "
+                        "Please try again after checking Ollama."
+                    )
+                except Exception as error:
+                    st.error(f"Unexpected error: {error}")
 
-                except Exception as e:
-                    st.error(f"❌ Error: {e}")
 
-        else:
-            st.warning("Please enter an ECE question first.")
-
-# ============================================================
 # FOOTER
+
 # ============================================================
+
+
 
 st.divider()
 
-st.caption(
-    "⚡ ECE Smart Lab Assistant | Built with Python & Streamlit"
-)
+st.caption("⚡ ECE Smart Lab Assistant • Smart Lab V2")
+
+
+
